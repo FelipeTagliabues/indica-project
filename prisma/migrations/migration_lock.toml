@@ -1,0 +1,2 @@
+# Não edite manualmente. Este arquivo é mantido pelo Prisma Migrate.
+provider = "postgresql"

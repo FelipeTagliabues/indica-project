@@ -1,0 +1,278 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../server/src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum RecordStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum IndicatorCode {
+  NPS
+  TMA_SECONDS
+  CARD_RETENTION
+  CALLBACK_RATE
+}
+
+enum ResultStatus {
+  ACTIVE
+  CANCELLED
+}
+
+enum ImportType {
+  OPERATORS
+  RESULTS
+}
+
+enum ImportStatus {
+  PENDING
+  VALIDATING
+  COMPLETED
+  FAILED
+}
+
+enum AuditOperation {
+  CREATE
+  UPDATE
+  CORRECTION
+  LOGICAL_CANCEL
+  IMPORT
+}
+
+enum AuditActorKind {
+  INFORMED
+  AUTHENTICATED
+}
+
+model Environment {
+  id            String                    @id @default(uuid()) @db.Uuid
+  code          String                    @unique @db.VarChar(50)
+  name          String                    @db.VarChar(120)
+  status        RecordStatus              @default(ACTIVE)
+  createdAt     DateTime                  @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime                  @updatedAt @db.Timestamptz(3)
+  skus          Sku[]
+  supervisors   Supervisor[]
+  assignments   OperatorAssignment[]
+  targets       IndicatorTarget[]
+  calendarRules OperationalCalendarRule[]
+  imports       ImportBatch[]
+  auditEvents   AuditEvent[]
+
+  @@map("environments")
+}
+
+model Sku {
+  id            String                    @id @default(uuid()) @db.Uuid
+  environmentId String                    @db.Uuid
+  code          String                    @db.VarChar(50)
+  name          String                    @db.VarChar(120)
+  status        RecordStatus              @default(ACTIVE)
+  createdAt     DateTime                  @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime                  @updatedAt @db.Timestamptz(3)
+  environment   Environment               @relation(fields: [environmentId], references: [id], onDelete: Restrict)
+  assignments   OperatorAssignment[]
+  targets       IndicatorTarget[]
+  calendarRules OperationalCalendarRule[]
+  imports       ImportBatch[]
+
+  @@unique([id, environmentId])
+  @@unique([environmentId, code])
+  @@index([environmentId, status])
+  @@map("skus")
+}
+
+model Supervisor {
+  id            String               @id @default(uuid()) @db.Uuid
+  environmentId String               @db.Uuid
+  name          String               @db.VarChar(160)
+  status        RecordStatus         @default(ACTIVE)
+  createdAt     DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime             @updatedAt @db.Timestamptz(3)
+  environment   Environment          @relation(fields: [environmentId], references: [id], onDelete: Restrict)
+  assignments   OperatorAssignment[]
+
+  @@unique([id, environmentId])
+  @@index([environmentId, status])
+  @@index([environmentId, name])
+  @@map("supervisors")
+}
+
+model Operator {
+  id            String               @id @default(uuid()) @db.Uuid
+  login         String               @unique @db.VarChar(100)
+  name          String               @db.VarChar(160)
+  admissionDate DateTime             @db.Date
+  status        RecordStatus         @default(ACTIVE)
+  inactivatedAt DateTime?            @db.Timestamptz(3)
+  createdAt     DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime             @updatedAt @db.Timestamptz(3)
+  assignments   OperatorAssignment[]
+
+  @@index([status])
+  @@index([name])
+  @@map("operators")
+}
+
+model OperatorAssignment {
+  id            String        @id @default(uuid()) @db.Uuid
+  operatorId    String        @db.Uuid
+  environmentId String        @db.Uuid
+  skuId         String        @db.Uuid
+  supervisorId  String        @db.Uuid
+  validFrom     DateTime      @db.Date
+  validTo       DateTime?     @db.Date
+  createdAt     DateTime      @default(now()) @db.Timestamptz(3)
+  operator      Operator      @relation(fields: [operatorId], references: [id], onDelete: Restrict)
+  environment   Environment   @relation(fields: [environmentId], references: [id], onDelete: Restrict)
+  sku           Sku           @relation(fields: [skuId, environmentId], references: [id, environmentId], onDelete: Restrict)
+  supervisor    Supervisor    @relation(fields: [supervisorId, environmentId], references: [id, environmentId], onDelete: Restrict)
+  results       DailyResult[]
+
+  @@unique([operatorId, validFrom])
+  @@index([operatorId, validFrom, validTo])
+  @@index([environmentId, skuId, supervisorId, validFrom, validTo])
+  @@map("operator_assignments")
+}
+
+model IndicatorTarget {
+  id            String        @id @default(uuid()) @db.Uuid
+  environmentId String        @db.Uuid
+  skuId         String        @db.Uuid
+  indicator     IndicatorCode
+  value         Decimal       @db.Decimal(12, 4)
+  validFrom     DateTime      @db.Date
+  validTo       DateTime?     @db.Date
+  createdAt     DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime      @updatedAt @db.Timestamptz(3)
+  environment   Environment   @relation(fields: [environmentId], references: [id], onDelete: Restrict)
+  sku           Sku           @relation(fields: [skuId, environmentId], references: [id, environmentId], onDelete: Restrict)
+
+  @@unique([environmentId, skuId, indicator, validFrom])
+  @@index([environmentId, skuId, indicator, validFrom, validTo])
+  @@map("indicator_targets")
+}
+
+model DailyResult {
+  id                 String             @id @default(uuid()) @db.Uuid
+  assignmentId       String             @db.Uuid
+  importBatchId      String?            @db.Uuid
+  resultDate         DateTime           @db.Date
+  nps                Decimal?           @db.Decimal(7, 3)
+  tmaSeconds         Int?
+  cardRetention      Decimal?           @db.Decimal(7, 3)
+  callbackRate       Decimal?           @db.Decimal(7, 3)
+  version            Int                @default(1)
+  status             ResultStatus       @default(ACTIVE)
+  cancelledAt        DateTime?          @db.Timestamptz(3)
+  cancellationReason String?            @db.VarChar(500)
+  cancelledBy        String?            @db.VarChar(160)
+  createdAt          DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime           @updatedAt @db.Timestamptz(3)
+  assignment         OperatorAssignment @relation(fields: [assignmentId], references: [id], onDelete: Restrict)
+  importBatch        ImportBatch?       @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+
+  @@unique([assignmentId, resultDate])
+  @@index([resultDate, status])
+  @@index([importBatchId])
+  @@map("daily_results")
+}
+
+model OperationalCalendarRule {
+  id              String                         @id @default(uuid()) @db.Uuid
+  environmentId   String                         @db.Uuid
+  skuId           String                         @db.Uuid
+  validFrom       DateTime                       @db.Date
+  validTo         DateTime?                      @db.Date
+  timezone        String                         @db.VarChar(80)
+  workingWeekdays Int[]
+  cutoffMinutes   Int?
+  createdAt       DateTime                       @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime                       @updatedAt @db.Timestamptz(3)
+  environment     Environment                    @relation(fields: [environmentId], references: [id], onDelete: Restrict)
+  sku             Sku                            @relation(fields: [skuId, environmentId], references: [id, environmentId], onDelete: Restrict)
+  exceptions      OperationalCalendarException[]
+
+  @@unique([environmentId, skuId, validFrom])
+  @@index([environmentId, skuId, validFrom, validTo])
+  @@map("operational_calendar_rules")
+}
+
+model OperationalCalendarException {
+  id             String                  @id @default(uuid()) @db.Uuid
+  calendarRuleId String                  @db.Uuid
+  date           DateTime                @db.Date
+  isOperational  Boolean
+  reason         String?                 @db.VarChar(250)
+  createdAt      DateTime                @default(now()) @db.Timestamptz(3)
+  calendarRule   OperationalCalendarRule @relation(fields: [calendarRuleId], references: [id], onDelete: Cascade)
+
+  @@unique([calendarRuleId, date])
+  @@index([date, isOperational])
+  @@map("operational_calendar_exceptions")
+}
+
+model ImportBatch {
+  id               String           @id @default(uuid()) @db.Uuid
+  environmentId    String           @db.Uuid
+  skuId            String?          @db.Uuid
+  type             ImportType
+  status           ImportStatus     @default(PENDING)
+  originalFileName String           @db.VarChar(255)
+  totalRows        Int              @default(0)
+  acceptedRows     Int              @default(0)
+  rejectedRows     Int              @default(0)
+  actorKind        AuditActorKind   @default(INFORMED)
+  actorIdentifier  String           @db.VarChar(160)
+  startedAt        DateTime         @default(now()) @db.Timestamptz(3)
+  finishedAt       DateTime?        @db.Timestamptz(3)
+  metadata         Json?
+  environment      Environment      @relation(fields: [environmentId], references: [id], onDelete: Restrict)
+  sku              Sku?             @relation(fields: [skuId, environmentId], references: [id, environmentId], onDelete: Restrict)
+  errors           ImportRowError[]
+  results          DailyResult[]
+
+  @@index([environmentId, startedAt])
+  @@index([status, startedAt])
+  @@map("import_batches")
+}
+
+model ImportRowError {
+  id            String      @id @default(uuid()) @db.Uuid
+  importBatchId String      @db.Uuid
+  lineNumber    Int
+  fieldName     String?     @db.VarChar(100)
+  code          String      @db.VarChar(80)
+  message       String      @db.VarChar(500)
+  rawValues     Json?
+  createdAt     DateTime    @default(now()) @db.Timestamptz(3)
+  importBatch   ImportBatch @relation(fields: [importBatchId], references: [id], onDelete: Cascade)
+
+  @@index([importBatchId, lineNumber])
+  @@map("import_row_errors")
+}
+
+model AuditEvent {
+  id              String         @id @default(uuid()) @db.Uuid
+  environmentId   String?        @db.Uuid
+  operation       AuditOperation
+  entityType      String         @db.VarChar(100)
+  entityId        String         @db.VarChar(100)
+  occurredAt      DateTime       @default(now()) @db.Timestamptz(3)
+  actorKind       AuditActorKind @default(INFORMED)
+  actorIdentifier String         @db.VarChar(160)
+  previousValues  Json?
+  newValues       Json?
+  metadata        Json?
+  environment     Environment?   @relation(fields: [environmentId], references: [id], onDelete: Restrict)
+
+  @@index([entityType, entityId, occurredAt])
+  @@index([environmentId, occurredAt])
+  @@index([actorIdentifier, occurredAt])
+  @@map("audit_events")
+}
