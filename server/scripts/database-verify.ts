@@ -24,6 +24,12 @@ const expectedConstraints = [
   'daily_results_values_check',
   'daily_results_has_value_check',
   'daily_results_cancellation_check',
+  'users_identity_check',
+  'users_confirmation_check',
+  'users_session_version_check',
+  'auth_tokens_dates_check',
+  'user_sessions_dates_check',
+  'user_sessions_version_check',
 ]
 const expectedTriggers = [
   'daily_results_assignment_period_trigger',
@@ -60,13 +66,14 @@ try {
   const missingTriggers = expectedTriggers.filter((name) => !foundTriggers.has(name))
 
   if (!applied.has('20261024141000_initial_structure')) throw new Error('A migration inicial não consta como aplicada pelo Prisma.')
+  if (!applied.has('20261025153000_user_authentication')) throw new Error('A migration de autenticação não consta como aplicada pelo Prisma.')
   if (extension.rowCount !== 1) throw new Error('A extensão btree_gist não está instalada.')
   if (missingConstraints.length) throw new Error(`Constraints ausentes: ${missingConstraints.join(', ')}.`)
   if (missingTriggers.length) throw new Error(`Gatilhos ausentes: ${missingTriggers.join(', ')}.`)
 
   console.log(JSON.stringify({
     database: database.rows[0]?.database_name,
-    migration: '20261024141000_initial_structure',
+    migrations: ['20261024141000_initial_structure', '20261025153000_user_authentication'],
     btreeGistInstalled: true,
     constraints: expectedConstraints,
     triggers: expectedTriggers,

@@ -471,7 +471,7 @@ async function createAuditEvent(transaction: Prisma.TransactionClient, input: Au
     operation: input.operation ?? AuditOperation.CREATE,
     entityType: input.entityType,
     entityId: input.entityId,
-    actorKind: AuditActorKind.INFORMED,
+    actorKind: AuditActorKind.AUTHENTICATED,
     actorIdentifier: input.actorIdentifier,
     ...(input.previousValues === undefined ? {} : { previousValues: input.previousValues }),
     ...(input.newValues === undefined ? {} : { newValues: input.newValues }),

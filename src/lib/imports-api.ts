@@ -1,3 +1,5 @@
+import { authFetch } from '@/lib/auth-api'
+
 export type ImportKind = 'OPERATORS' | 'RESULTS'
 export type ImportStatus = 'PENDING' | 'VALIDATING' | 'COMPLETED' | 'FAILED'
 
@@ -101,7 +103,7 @@ export function importTemplateUrl(type: ImportKind, format: 'xlsx' | 'csv') {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${apiBaseUrl}/api/imports${path}`, init)
+  const response = await authFetch(`${apiBaseUrl}/api/imports${path}`, init)
   const payload = await response.json().catch(() => null) as ApiEnvelope | null
   if (!response.ok) {
     const error = payload?.error

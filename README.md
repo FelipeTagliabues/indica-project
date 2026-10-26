@@ -44,7 +44,7 @@ O endpoint `GET http://localhost:3333/api/health` verifica apenas o processo HTT
 - operadores com login globalmente único, admissão e inativação;
 - atribuições históricas com vigência, ambiente, SKU e supervisor.
 
-As alterações exigem um responsável informado, marcado como não autenticado, e criam auditoria na mesma transação.
+As alterações usam exclusivamente a identidade da sessão autenticada e criam auditoria na mesma transação.
 
 ## Resultados e dashboard
 
@@ -64,7 +64,7 @@ As alterações exigem um responsável informado, marcado como não autenticado,
 - A prévia é somente leitura. A API repete toda a validação na confirmação e recusa arquivo alterado depois da prévia.
 - Atualizações de operadores e substituições de resultados exigem confirmações específicas.
 - Lote, alterações operacionais e auditoria são gravados atomicamente. Falha transacional reverte os dados operacionais e registra um lote com falha, sem sucesso parcial.
-- O histórico exibe responsável informado, arquivo, ambiente, quantidades e erros persistidos.
+- O histórico exibe o usuário autenticado, arquivo, ambiente, quantidades e erros persistidos.
 
 Cabeçalhos do modelo de operadores:
 
@@ -101,7 +101,13 @@ A migration em `prisma/migrations/20261024141000_initial_structure/` foi aplicad
 
 Consulte [`docs/project-log.md`](docs/project-log.md) para o histórico da migração e [`docs/decisions.md`](docs/decisions.md) para as decisões técnicas.
 
-> A autenticação Google ainda não está configurada. Cadastros, resultados, importações e dashboard dependem obrigatoriamente da API e do PostgreSQL; dados demonstrativos não são usados nesses fluxos.
+## Autenticação e e-mail
+
+O Indica oferece cadastro público com papel inicial `USER`, confirmação obrigatória de e-mail, login, sessão persistida em cookie `HttpOnly`/`SameSite=Strict`, logout e recuperação de senha. Senhas usam Argon2id; tokens aleatórios são persistidos somente como SHA-256 e são temporários e de uso único. As páginas e APIs operacionais exigem sessão, e escritas exigem token CSRF mantido apenas em memória.
+
+Configure `APP_BASE_URL`, `AUTH_CSRF_SECRET`, `AUTH_COOKIE_NAME`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD` e `EMAIL_FROM` conforme `.env.example`. Sem SMTP válido a conta pode ser criada como pendente, mas a API retorna falha de entrega e não afirma que enviou a mensagem. Em produção, usuário e senha SMTP são obrigatórios e o cookie recebe `Secure`.
+
+Cadastros, resultados, importações e dashboard dependem obrigatoriamente da API, do PostgreSQL e de uma sessão válida; dados demonstrativos não são usados nesses fluxos.
 
 ## Documentação original do template
 

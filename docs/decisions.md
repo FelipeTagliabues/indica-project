@@ -257,3 +257,19 @@ Cada arquivo pertence a um único ambiente para respeitar o escopo obrigatório 
 - Uma falha de escrita reverte o lote operacional inteiro. O evento de falha é registrado somente após o rollback, em lote `FAILED`, sem manter alterações parciais.
 - Excel e CSV alimentam o mesmo normalizador e as mesmas regras de domínio.
 - O schema e a migration inicial permanecem inalterados.
+
+## ADR-017 — Sessão opaca, confirmação obrigatória e autoria confiável
+
+- Data: 2026-10-25
+- Status: aceita
+
+### Decisão
+
+Autenticar por e-mail e senha com Argon2id, exigir confirmação antes do acesso e persistir sessões opacas no PostgreSQL. O navegador recebe cookie `HttpOnly`, `SameSite=Strict` e `Secure` em produção; operações inseguras exigem CSRF. Tokens de confirmação e recuperação são aleatórios, temporários, de uso único e persistidos apenas como hash. Cadastro público cria somente papel `USER`.
+
+### Consequências
+
+- Senhas, tokens brutos e verificadores de sessão não são expostos pela API nem armazenados em texto puro.
+- Redefinir a senha incrementa `sessionVersion` e revoga todas as sessões existentes na mesma transação.
+- Auditorias operacionais usam a identidade autenticada definida pelo servidor; a decisão transitória do ADR-011 sobre ator `INFORMED` deixa de valer para as rotas protegidas.
+- SMTP é dependência externa obrigatória para entrega real. O limitador em memória atende a instância única atual e deverá ter armazenamento compartilhado antes de escalar horizontalmente.

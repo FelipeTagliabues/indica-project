@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
-import { ClipboardPenLine, Database, Download, FileCheck2, LayoutDashboard, LogOut, Settings, Upload, Users } from 'lucide-react'
+import { ClipboardPenLine, Database, Download, FileCheck2, LayoutDashboard, Settings, Upload, Users } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Logo } from '@/components/Logo'
 import { Seo } from '@/components/Seo'
+import { LogoutButton } from '@/components/LogoutButton'
+import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/Button'
 import {
   commitValidatedImport,
@@ -18,10 +20,11 @@ import {
 const fieldClass = 'h-10 w-full rounded-lg border bg-background px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-50'
 
 export function ImportsPage() {
+  const { user } = useAuth()
   const [type, setType] = useState<ImportKind>('OPERATORS')
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<ImportPreview | null>(null)
-  const [actorIdentifier, setActorIdentifier] = useState('')
+  const actorIdentifier = user?.email ?? ''
   const [confirmOperatorUpdates, setConfirmOperatorUpdates] = useState(false)
   const [confirmResultReplacements, setConfirmResultReplacements] = useState(false)
   const [history, setHistory] = useState<ImportBatchRecord[]>([])
@@ -80,10 +83,6 @@ export function ImportsPage() {
 
   const commit = async () => {
     if (!file || !preview || preview.issues.length > 0) return
-    if (actorIdentifier.trim().length < 3) {
-      setError('Informe o responsável pela importação. A identificação ainda é declarada, não autenticada.')
-      return
-    }
     if (preview.requiresOperatorUpdateConfirmation && !confirmOperatorUpdates) {
       setError('Confirme as atualizações de operadores indicadas na prévia.')
       return
@@ -173,8 +172,6 @@ export function ImportsPage() {
 
         {preview && <Preview
           preview={preview}
-          actorIdentifier={actorIdentifier}
-          setActorIdentifier={setActorIdentifier}
           confirmOperatorUpdates={confirmOperatorUpdates}
           setConfirmOperatorUpdates={setConfirmOperatorUpdates}
           confirmResultReplacements={confirmResultReplacements}
@@ -191,8 +188,6 @@ export function ImportsPage() {
 
 function Preview(props: {
   preview: ImportPreview
-  actorIdentifier: string
-  setActorIdentifier: (value: string) => void
   confirmOperatorUpdates: boolean
   setConfirmOperatorUpdates: (value: boolean) => void
   confirmResultReplacements: boolean
@@ -233,10 +228,6 @@ function Preview(props: {
 
       {valid && <div className="mt-5 grid gap-4 rounded-xl bg-muted/60 p-4 lg:grid-cols-[1fr_auto] lg:items-end">
         <div className="grid gap-3">
-          <label className="grid gap-1.5 text-xs font-semibold text-muted-foreground">
-            Responsável informado
-            <input className={fieldClass} value={props.actorIdentifier} onChange={(event) => props.setActorIdentifier(event.target.value)} maxLength={160} placeholder="Nome ou identificação do responsável" />
-          </label>
           {props.preview.requiresOperatorUpdateConfirmation && <Confirm checked={props.confirmOperatorUpdates} onChange={props.setConfirmOperatorUpdates}>Confirmo a atualização de nome e/ou admissão dos operadores indicados.</Confirm>}
           {props.preview.requiresResultReplacementConfirmation && <Confirm checked={props.confirmResultReplacements} onChange={props.setConfirmResultReplacements}>Confirmo a substituição integral dos quatro indicadores existentes.</Confirm>}
         </div>
@@ -251,7 +242,7 @@ function History({ batches }: { batches: ImportBatchRecord[] }) {
 }
 
 function Sidebar() {
-  return <aside className="hidden w-64 shrink-0 flex-col border-r bg-sidebar p-5 md:flex"><Logo /><nav aria-label="Menu do painel" className="mt-10 space-y-1 text-sm font-medium"><MenuLink to="/painel" icon={<LayoutDashboard className="h-4 w-4" />}>Dashboard</MenuLink><MenuLink to="/cadastros" icon={<Users className="h-4 w-4" />}>Operadores</MenuLink><MenuLink to="/resultados" icon={<ClipboardPenLine className="h-4 w-4" />}>Registro diário</MenuLink><div aria-current="page" className="flex items-center gap-3 rounded-xl bg-sidebar-accent px-3 py-2.5 text-sidebar-accent-foreground"><Upload className="h-4 w-4" /> Uploads</div><div className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-muted-foreground"><Settings className="h-4 w-4" /> Configurar indicadores</div></nav><Link to="/" className="mt-auto flex items-center gap-3 px-3 text-sm text-muted-foreground hover:text-foreground"><LogOut className="h-4 w-4" /> Sair</Link></aside>
+  return <aside className="hidden w-64 shrink-0 flex-col border-r bg-sidebar p-5 md:flex"><Logo /><nav aria-label="Menu do painel" className="mt-10 space-y-1 text-sm font-medium"><MenuLink to="/painel" icon={<LayoutDashboard className="h-4 w-4" />}>Dashboard</MenuLink><MenuLink to="/cadastros" icon={<Users className="h-4 w-4" />}>Operadores</MenuLink><MenuLink to="/resultados" icon={<ClipboardPenLine className="h-4 w-4" />}>Registro diário</MenuLink><div aria-current="page" className="flex items-center gap-3 rounded-xl bg-sidebar-accent px-3 py-2.5 text-sidebar-accent-foreground"><Upload className="h-4 w-4" /> Uploads</div><div className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-muted-foreground"><Settings className="h-4 w-4" /> Configurar indicadores</div></nav><LogoutButton /></aside>
 }
 
 function MenuLink({ to, icon, children }: { to: string; icon: ReactNode; children: ReactNode }) {

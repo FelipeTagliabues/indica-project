@@ -2,6 +2,13 @@ import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { HomePage } from '@/pages/HomePage'
 import { LoginPage } from '@/pages/LoginPage'
+import { RegisterPage } from '@/pages/RegisterPage'
+import { PendingConfirmationPage } from '@/pages/PendingConfirmationPage'
+import { ConfirmEmailPage } from '@/pages/ConfirmEmailPage'
+import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage'
+import { ResetPasswordPage } from '@/pages/ResetPasswordPage'
+import { AuthProvider } from '@/contexts/AuthContext'
+import { ProtectedRoute } from '@/components/ProtectedRoute'
 
 const DashboardPage = lazy(() => import('@/pages/DashboardPage').then((module) => ({ default: module.DashboardPage })))
 const RegistrationsPage = lazy(() => import('@/pages/RegistrationsPage').then((module) => ({ default: module.RegistrationsPage })))
@@ -13,14 +20,19 @@ const pageFallback = <div className="grid min-h-screen place-items-center bg-bac
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
+      <AuthProvider><Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/cadastro" element={<RegisterPage />} />
+        <Route path="/confirmacao-pendente" element={<PendingConfirmationPage />} />
+        <Route path="/confirmar-email" element={<ConfirmEmailPage />} />
+        <Route path="/esqueci-senha" element={<ForgotPasswordPage />} />
+        <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
         <Route
           path="/painel"
           element={(
             <Suspense fallback={pageFallback}>
-              <DashboardPage />
+              <ProtectedRoute><DashboardPage /></ProtectedRoute>
             </Suspense>
           )}
         />
@@ -28,7 +40,7 @@ function App() {
           path="/cadastros"
           element={(
             <Suspense fallback={pageFallback}>
-              <RegistrationsPage />
+              <ProtectedRoute><RegistrationsPage /></ProtectedRoute>
             </Suspense>
           )}
         />
@@ -36,7 +48,7 @@ function App() {
           path="/resultados"
           element={(
             <Suspense fallback={pageFallback}>
-              <ResultsPage />
+              <ProtectedRoute><ResultsPage /></ProtectedRoute>
             </Suspense>
           )}
         />
@@ -44,12 +56,12 @@ function App() {
           path="/importacoes"
           element={(
             <Suspense fallback={pageFallback}>
-              <ImportsPage />
+              <ProtectedRoute><ImportsPage /></ProtectedRoute>
             </Suspense>
           )}
         />
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      </Routes></AuthProvider>
     </BrowserRouter>
   )
 }

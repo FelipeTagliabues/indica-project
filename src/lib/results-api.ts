@@ -1,3 +1,5 @@
+import { authFetch } from '@/lib/auth-api'
+
 export type IndicatorCode = 'NPS' | 'TMA_SECONDS' | 'CARD_RETENTION' | 'CALLBACK_RATE'
 
 export type DailyResultRecord = {
@@ -75,7 +77,7 @@ async function dataRequest<T>(path: string, init?: RequestInit) {
 }
 
 async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${apiBaseUrl}/api/results${path}`, {
+  const response = await authFetch(`${apiBaseUrl}/api/results${path}`, {
     ...init,
     headers: { 'content-type': 'application/json', ...init?.headers },
   })

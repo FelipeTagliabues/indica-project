@@ -14,6 +14,7 @@ vi.mock('@/lib/imports-api', async (importOriginal) => {
     commitValidatedImport: vi.fn(),
   }
 })
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { email: 'usuario@indica.local' }, loading: false, login: vi.fn(), logout: vi.fn() }) }))
 
 describe('tela de importações', () => {
   beforeEach(() => {

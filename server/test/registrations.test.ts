@@ -1,7 +1,7 @@
 import request from 'supertest'
 import { describe, expect, it, vi } from 'vitest'
 import type { PrismaClient } from '../src/generated/prisma/client.js'
-import { createApp } from '../src/app.js'
+import { createAuthenticatedTestApp as createApp } from './support/authenticated-test-app.js'
 
 const environment = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -105,8 +105,8 @@ describe('cadastros operacionais', () => {
         operation: 'CREATE',
         entityType: 'Environment',
         entityId: environment.id,
-        actorKind: 'INFORMED',
-        actorIdentifier: 'Felipe (informado)',
+        actorKind: 'AUTHENTICATED',
+        actorIdentifier: 'testes@indica.local',
       }),
     })
   })

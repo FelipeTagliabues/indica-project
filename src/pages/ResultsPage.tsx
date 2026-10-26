@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { ClipboardPenLine, LayoutDashboard, LogOut, Settings, Upload, Users } from 'lucide-react'
+import { ClipboardPenLine, LayoutDashboard, Settings, Upload, Users } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Logo } from '@/components/Logo'
 import { Seo } from '@/components/Seo'
+import { LogoutButton } from '@/components/LogoutButton'
+import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/Button'
 import { loadRegistrationData, type RegistrationData } from '@/lib/registrations-api'
 import {
@@ -18,13 +20,14 @@ const fieldClass = 'h-10 w-full rounded-lg border bg-background px-3 text-sm out
 const labelClass = 'grid gap-1.5 text-xs font-semibold text-muted-foreground'
 
 export function ResultsPage() {
+  const { user } = useAuth()
   const [registrations, setRegistrations] = useState<RegistrationData | null>(null)
   const [registrationError, setRegistrationError] = useState<string | null>(null)
   const [environmentChoice, setEnvironmentChoice] = useState('')
   const [skuChoice, setSkuChoice] = useState('')
   const [assignmentChoice, setAssignmentChoice] = useState('')
   const [resultDate, setResultDate] = useState(todayValue())
-  const [actorIdentifier, setActorIdentifier] = useState('')
+  const actorIdentifier = user?.email ?? ''
   const [nps, setNps] = useState('')
   const [tma, setTma] = useState('')
   const [cardRetention, setCardRetention] = useState('')
@@ -117,11 +120,6 @@ export function ResultsPage() {
       return
     }
     const actor = actorIdentifier.trim()
-    if (actor.length < 3) {
-      setFeedback({ tone: 'error', message: 'Informe o responsável pela alteração.' })
-      return
-    }
-
     const payload = {
       assignmentId,
       resultDate,
@@ -202,7 +200,6 @@ export function ResultsPage() {
                 {editing && <Button type="button" variant="ghost" onClick={clearMetrics}>Cancelar edição</Button>}
               </div>
               <form className="grid gap-4" onSubmit={(event) => void submit(event)}>
-                <Field label="Responsável informado"><input className={fieldClass} value={actorIdentifier} onChange={(event) => setActorIdentifier(event.target.value)} required maxLength={160} /></Field>
                 <Field label="Ambiente"><select className={fieldClass} value={environmentId} onChange={(event) => { setEnvironmentChoice(event.target.value); setSkuChoice(''); setAssignmentChoice(''); clearMetrics() }} required><option value="">Selecione</option>{activeEnvironments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>
                 <Field label="SKU"><select className={fieldClass} value={skuId} onChange={(event) => { setSkuChoice(event.target.value); setAssignmentChoice(''); clearMetrics() }} required><option value="">Selecione</option>{activeSkus.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>
                 <Field label="Data operacional"><input className={fieldClass} type="date" value={resultDate} onChange={(event) => { setResultDate(event.target.value); setAssignmentChoice(''); clearMetrics() }} required /></Field>
@@ -239,7 +236,7 @@ export function ResultsPage() {
 }
 
 function Sidebar({ active }: { active: 'results' }) {
-  return <aside className="hidden w-64 shrink-0 flex-col border-r bg-sidebar p-5 md:flex"><Logo /><nav aria-label="Menu do painel" className="mt-10 space-y-1 text-sm font-medium"><MenuLink to="/painel" icon={<LayoutDashboard />} label="Dashboard" /><MenuLink to="/cadastros" icon={<Users />} label="Operadores" /><div aria-current={active === 'results' ? 'page' : undefined} className="flex items-center gap-3 rounded-xl bg-sidebar-accent px-3 py-2.5 text-sidebar-accent-foreground"><ClipboardPenLine className="h-4 w-4" /> Registro diário</div><MenuLink to="/importacoes" icon={<Upload />} label="Uploads" /><div className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-muted-foreground"><Settings className="h-4 w-4" /> Configurar indicadores</div></nav><Link to="/" className="mt-auto flex items-center gap-3 px-3 text-sm text-muted-foreground hover:text-foreground"><LogOut className="h-4 w-4" /> Sair</Link></aside>
+  return <aside className="hidden w-64 shrink-0 flex-col border-r bg-sidebar p-5 md:flex"><Logo /><nav aria-label="Menu do painel" className="mt-10 space-y-1 text-sm font-medium"><MenuLink to="/painel" icon={<LayoutDashboard />} label="Dashboard" /><MenuLink to="/cadastros" icon={<Users />} label="Operadores" /><div aria-current={active === 'results' ? 'page' : undefined} className="flex items-center gap-3 rounded-xl bg-sidebar-accent px-3 py-2.5 text-sidebar-accent-foreground"><ClipboardPenLine className="h-4 w-4" /> Registro diário</div><MenuLink to="/importacoes" icon={<Upload />} label="Uploads" /><div className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-muted-foreground"><Settings className="h-4 w-4" /> Configurar indicadores</div></nav><LogoutButton /></aside>
 }
 
 function MenuLink({ to, icon, label }: { to: string; icon: ReactNode; label: string }) {

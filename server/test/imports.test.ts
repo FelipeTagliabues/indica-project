@@ -2,7 +2,7 @@ import request from 'supertest'
 import ExcelJS from 'exceljs'
 import { describe, expect, it, vi } from 'vitest'
 import type { PrismaClient } from '../src/generated/prisma/client.js'
-import { createApp } from '../src/app.js'
+import { createAuthenticatedTestApp as createApp } from './support/authenticated-test-app.js'
 
 describe('validação HTTP de importações', () => {
   it('rejeita cabeçalhos incorretos antes de consultar o banco', async () => {

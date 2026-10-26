@@ -1,6 +1,6 @@
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { createApp } from '../src/app.js'
+import { createAuthenticatedTestApp as createApp, testAuthUser } from '../test/support/authenticated-test-app.js'
 import type { PrismaClient } from '../src/generated/prisma/client.js'
 import { disconnectPrismaClient, getPrismaClient } from '../src/lib/prisma.js'
 
@@ -30,7 +30,7 @@ describe('importações com PostgreSQL exclusivo', () => {
     skuId = sku.id
     const supervisor = await database.supervisor.create({ data: { environmentId, name: supervisorName } })
     supervisorId = supervisor.id
-    app = createApp({ databaseProvider: () => database })
+    app = createApp({ databaseProvider: () => database, authenticationBypass: { ...testAuthUser, email: actorIdentifier } })
   })
 
   afterAll(async () => {
@@ -131,6 +131,7 @@ describe('importações com PostgreSQL exclusivo', () => {
   it('reverte gravações operacionais quando ocorre falha dentro da transação', async () => {
     const failingApp = createApp({
       databaseProvider: () => database,
+      authenticationBypass: { ...testAuthUser, email: actorIdentifier },
       importOptions: { afterFirstWrite: async () => { throw new Error('falha controlada do teste') } },
     })
     const csv = [

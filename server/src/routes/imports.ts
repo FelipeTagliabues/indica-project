@@ -3,6 +3,8 @@ import { Router } from 'express'
 import multer from 'multer'
 import { z } from 'zod'
 import { AppError } from '../errors/app-error.js'
+import { authenticatedUser } from '../auth/middleware.js'
+import type { AuthenticatedRequest } from '../auth/types.js'
 import { ImportType, type PrismaClient } from '../generated/prisma/client.js'
 import { getPrismaClient } from '../lib/prisma.js'
 import {
@@ -25,12 +27,10 @@ const upload = multer({
 })
 
 const typeSchema = z.enum([ImportType.OPERATORS, ImportType.RESULTS])
-const actorSchema = z.string().trim().min(3, 'Informe o responsável pela importação.').max(160)
 const booleanField = z.preprocess((value) => value === true || value === 'true', z.boolean())
 const validateSchema = z.object({ type: typeSchema })
 const commitSchema = z.object({
   type: typeSchema,
-  actorIdentifier: actorSchema,
   fingerprint: z.string().regex(/^[a-f0-9]{64}$/, 'A prévia informada é inválida.'),
   confirmOperatorUpdates: booleanField.default(false),
   confirmResultReplacements: booleanField.default(false),
@@ -90,6 +90,7 @@ export function createImportsRouter(
 
   router.post('/commit', upload.single('file'), async (request, response) => {
     const input = commitSchema.parse(request.body)
+    const actorIdentifier = authenticatedUser(request as AuthenticatedRequest).email
     const file = requireFile(request.file)
     const actualFingerprint = createHash('sha256').update(file.buffer).digest('hex')
     if (actualFingerprint !== input.fingerprint) {
@@ -99,7 +100,7 @@ export function createImportsRouter(
     const database = databaseProvider()
     const validated = await validateImportFile(database, input.type, file.originalname, file.buffer)
     if (validated.preview.issues.length > 0) {
-      const failedBatch = await recordFailedImport(database, validated, input.actorIdentifier)
+      const failedBatch = await recordFailedImport(database, validated, actorIdentifier)
       response.status(422).json({
         error: { code: 'IMPORT_VALIDATION_FAILED', message: 'O arquivo deixou de ser válido antes da gravação.' },
         data: validated.preview,
@@ -115,7 +116,7 @@ export function createImportsRouter(
     }
 
     try {
-      const batch = await commitImport(database, validated, input.actorIdentifier, {
+      const batch = await commitImport(database, validated, actorIdentifier, {
         confirmOperatorUpdates: input.confirmOperatorUpdates,
         confirmResultReplacements: input.confirmResultReplacements,
         ...(options.afterFirstWrite ? { afterFirstWrite: options.afterFirstWrite } : {}),
@@ -123,7 +124,7 @@ export function createImportsRouter(
       response.status(201).json({ data: batch })
     } catch (cause) {
       const failed = withCommitFailure(validated, cause)
-      await recordFailedImport(database, failed, input.actorIdentifier).catch(() => null)
+      await recordFailedImport(database, failed, actorIdentifier).catch(() => null)
       throw new AppError(
         'A importação falhou e nenhuma alteração operacional parcial foi mantida.',
         409,

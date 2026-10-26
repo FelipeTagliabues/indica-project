@@ -362,3 +362,42 @@ Por padrão, o Vite exibe a URL local no terminal, normalmente `http://localhost
 - Verificação HTTP local: `/importacoes`, histórico, modelo CSV e modelo Excel responderam 200 pelo proxy Vite. O histórico permaneceu vazio após o teardown dos testes.
 - A inspeção visual automatizada não foi executada porque o ambiente não disponibilizou navegador controlável.
 - Nenhuma migration, `db push`, seed ou alteração do schema foi executada.
+
+## 2026-10-25 — Etapa 1: autenticação completa
+
+### Implementado
+
+- Cadastro com nome, e-mail normalizado, senha Argon2id e papel público fixo `USER`.
+- Confirmação de e-mail por token aleatório, temporário, de uso único e armazenado somente como hash; reenvio com cooldown e invalidação dos anteriores.
+- Login de contas ativas, sessão opaca persistida no PostgreSQL, cookie `HttpOnly`/`SameSite=Strict` (`Secure` em produção), CSRF, expiração por inatividade/absoluta e logout com revogação.
+- Recuperação de senha sem enumeração de conta, token temporário e revogação atômica de sessões após a troca.
+- SMTP transacional via Nodemailer, sem logs de tokens, e telas integradas para todos os fluxos.
+- Proteção das quatro páginas operacionais e das APIs de cadastros, resultados e importações.
+- Auditoria migrada de ator informado pelo cliente para a identidade autenticada da sessão.
+
+### Banco
+
+- Criada e aplicada no PostgreSQL exclusivo `indica_dev` a migration aditiva `20261025153000_user_authentication`.
+- Adicionados `users`, `auth_tokens`, `user_sessions`, enums, índices, FKs e checks temporais/de identidade.
+- O preflight confirmou o banco `indica_dev`, permissões e `btree_gist`; não houve reset, `db push` ou seed.
+
+### Qualidade
+
+- Adicionada suíte PostgreSQL com os 15 cenários obrigatórios de autenticação.
+- A execução inicial revelou e corrigiu a diferença de milissegundos entre `lastSeenAt` da aplicação e `createdAt` do banco; ambos agora são gravados com o mesmo instante.
+- `npm run test:integration:db`: 23/23 testes aprovados em 3 arquivos após a correção.
+- `npm run test:all`: 10/10 testes web e 21/21 testes HTTP/unitários da API aprovados.
+- `npm run typecheck:api`, `npm run lint` e `npm run build`: aprovados; o build manteve apenas o aviso não bloqueante de chunk web acima de 500 kB.
+- `npm run db:verify`: confirmou as duas migrations, `btree_gist`, 12 constraints verificadas e 3 gatilhos no `indica_dev`.
+- `npm audit --omit=dev`: 0 vulnerabilidades.
+- O preview local iniciou com sucesso; a inspeção visual automatizada não foi possível porque o navegador integrado não está disponível neste ambiente.
+- Credenciais SMTP reais continuam externas e não foram fornecidas nem copiadas para o repositório.
+
+## 2026-10-25 — Correção da configuração local de autenticação
+
+- Confirmado que `server/src/config/env.ts` carrega o `.env` da raiz por `dotenv/config` e que `server/src/auth/config.ts` exige `APP_BASE_URL` válida e `AUTH_CSRF_SECRET` com pelo menos 32 caracteres.
+- A causa de `AUTH_NOT_CONFIGURED` era a ausência dessas duas chaves no `.env` local usado pelo processo da API.
+- Configurado localmente `APP_BASE_URL=http://localhost:5173`, `AUTH_COOKIE_NAME=indica_session` e um segredo aleatório de 64 caracteres gerado por `crypto.randomBytes`. O `.env` permanece ignorado e o segredo não foi registrado em logs ou arquivos versionados.
+- A API compilada foi reiniciada na porta 3333 e o health check respondeu 200.
+- Smoke test pelo proxy real do Vite confirmou que o cadastro chega à API, cria conta `PENDING`/`USER` e persiste hash Argon2id. Sem SMTP configurado, a resposta avança corretamente para `EMAIL_PROVIDER_NOT_CONFIGURED`; a conta sintética foi removida em seguida.
+- Adicionados testes do cliente web para `credentials: include`, restauração de sessão e envio do cabeçalho CSRF em escritas.

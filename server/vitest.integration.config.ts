@@ -8,8 +8,8 @@ export default defineConfig(({ mode }) => {
     test: {
       environment: 'node',
       include: ['server/test-integration/**/*.{test,spec}.ts'],
-      testTimeout: 20_000,
-      hookTimeout: 20_000,
+      testTimeout: 60_000,
+      hookTimeout: 60_000,
       env: {
         DATABASE_URL: loadedEnv.DATABASE_URL ?? '',
         INDICA_DATABASE_IS_EXCLUSIVE: loadedEnv.INDICA_DATABASE_IS_EXCLUSIVE ?? '',

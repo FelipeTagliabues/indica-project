@@ -1,8 +1,10 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { HomePage } from '@/pages/HomePage'
 import { LoginPage } from '@/pages/LoginPage'
+
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: null, loading: false, login: vi.fn(), logout: vi.fn() }) }))
 
 describe('rotas principais', () => {
   it('renderiza a página inicial', () => {
@@ -10,9 +12,10 @@ describe('rotas principais', () => {
     expect(screen.getByRole('heading', { name: /os indicadores da sua operação/i })).toBeInTheDocument()
   })
 
-  it('renderiza o acesso em modo de demonstração', () => {
+  it('renderiza o formulário de acesso real', () => {
     render(<MemoryRouter><LoginPage /></MemoryRouter>)
-    expect(screen.getByRole('button', { name: /entrar com google/i })).toBeInTheDocument()
-    expect(screen.getByText(/autenticação google ainda não configurada/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^entrar$/i })).toBeInTheDocument()
+    expect(screen.getByLabelText(/e-mail/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^senha$/i)).toBeInTheDocument()
   })
 })

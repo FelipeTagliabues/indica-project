@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { ClipboardPenLine, Database, LayoutDashboard, LogOut, Settings, Upload, Users } from 'lucide-react'
+import { ClipboardPenLine, Database, LayoutDashboard, Settings, Upload, Users } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Logo } from '@/components/Logo'
 import { Seo } from '@/components/Seo'
+import { LogoutButton } from '@/components/LogoutButton'
+import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/Button'
 import {
   loadRegistrationData,
@@ -27,9 +29,10 @@ const fieldClass = 'h-10 w-full rounded-lg border bg-background px-3 text-sm out
 const labelClass = 'grid gap-1.5 text-xs font-semibold text-muted-foreground'
 
 export function RegistrationsPage() {
+  const { user } = useAuth()
   const [section, setSection] = useState<SectionId>('environments')
   const [data, setData] = useState<RegistrationData | null>(null)
-  const [actorIdentifier, setActorIdentifier] = useState('')
+  const actorIdentifier = user?.email ?? ''
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -67,11 +70,6 @@ export function RegistrationsPage() {
 
   const mutate = async (successMessage: string, operation: (actor: string) => Promise<unknown>) => {
     const actor = actorIdentifier.trim()
-    if (actor.length < 3) {
-      setError('Informe o responsável pela alteração. Este campo ainda não representa uma identidade autenticada.')
-      return false
-    }
-
     setBusy(true)
     setError(null)
     setNotice(null)
@@ -107,9 +105,7 @@ export function RegistrationsPage() {
           <Link to="/importacoes" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"><Upload className="h-4 w-4" /> Uploads</Link>
           <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-muted-foreground"><Settings className="h-4 w-4" /> Configurar indicadores</div>
         </nav>
-        <Link to="/" className="mt-auto flex items-center gap-3 px-3 text-sm text-muted-foreground hover:text-foreground">
-          <LogOut className="h-4 w-4" /> Sair
-        </Link>
+        <LogoutButton />
       </aside>
 
       <main className="min-w-0 flex-1 p-4 sm:p-6 md:p-8">
@@ -123,24 +119,6 @@ export function RegistrationsPage() {
           </div>
           <Button asChild variant="outline"><Link to="/painel"><LayoutDashboard /> Voltar ao painel</Link></Button>
         </div>
-
-        <section className="mt-6 rounded-2xl border bg-card p-4 shadow-card sm:p-5">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-            <label className={`${labelClass} max-w-lg flex-1`}>
-              Responsável informado
-              <input
-                className={fieldClass}
-                value={actorIdentifier}
-                onChange={(event) => setActorIdentifier(event.target.value)}
-                placeholder="Nome ou identificação do responsável"
-                maxLength={160}
-              />
-            </label>
-            <p className="max-w-xl rounded-xl bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
-              Identificação declarada, ainda não autenticada. Cada alteração é registrada na auditoria.
-            </p>
-          </div>
-        </section>
 
         {error && <Feedback tone="error">{error}</Feedback>}
         {notice && <Feedback tone="success">{notice}</Feedback>}

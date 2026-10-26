@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { ClipboardPenLine, LayoutDashboard, LogOut, Settings, TrendingDown, TrendingUp, Upload, Users } from 'lucide-react'
+import { ClipboardPenLine, LayoutDashboard, Settings, TrendingDown, TrendingUp, Upload, Users } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Logo } from '@/components/Logo'
 import { Seo } from '@/components/Seo'
 import { loadRegistrationData, type RegistrationData } from '@/lib/registrations-api'
 import { formatTma, loadResults, type DailyResultRecord, type IndicatorCode, type IndicatorTargetRecord } from '@/lib/results-api'
+import { LogoutButton } from '@/components/LogoutButton'
 
 const ranges = [
   { id: 'all', label: 'Todos', min: 0, max: Number.POSITIVE_INFINITY },
@@ -126,7 +127,7 @@ export function DashboardPage() {
             return path ? <Link key={label} to={path} className={className}><Icon className="h-4 w-4" /> {label}</Link> : <div key={label} aria-current={active ? 'page' : undefined} className={className}><Icon className="h-4 w-4" /> {label}</div>
           })}
         </nav>
-        <Link to="/" className="mt-auto flex items-center gap-3 px-3 text-sm text-muted-foreground hover:text-foreground"><LogOut className="h-4 w-4" /> Sair</Link>
+        <LogoutButton />
       </aside>
 
       <main className="min-w-0 flex-1 p-4 sm:p-6 md:p-8">

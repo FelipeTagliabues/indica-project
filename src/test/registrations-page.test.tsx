@@ -11,6 +11,7 @@ vi.mock('@/lib/registrations-api', async (importOriginal) => {
     loadRegistrationData: vi.fn(),
   }
 })
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { email: 'usuario@indica.local' }, loading: false, login: vi.fn(), logout: vi.fn() }) }))
 
 const mockedLoad = vi.mocked(loadRegistrationData)
 
@@ -19,7 +20,7 @@ describe('página de cadastros', () => {
     mockedLoad.mockReset()
   })
 
-  it('exibe cadastros retornados pela API e identifica o responsável como não autenticado', async () => {
+  it('exibe cadastros retornados pela API sem solicitar identidade declarada', async () => {
     mockedLoad.mockResolvedValue({
       environments: [{ id: 'env-1', code: 'PERNAMBUCANAS', name: 'Pernambucanas', status: 'ACTIVE' }],
       skus: [],
@@ -31,7 +32,7 @@ describe('página de cadastros', () => {
     render(<MemoryRouter><RegistrationsPage /></MemoryRouter>)
 
     expect(await screen.findByText('PERNAMBUCANAS')).toBeInTheDocument()
-    expect(screen.getByText(/identificação declarada, ainda não autenticada/i)).toBeInTheDocument()
+    expect(screen.queryByText(/responsável informado/i)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /salvar ambiente/i })).toBeInTheDocument()
   })
 

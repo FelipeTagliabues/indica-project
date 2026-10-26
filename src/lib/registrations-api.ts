@@ -1,3 +1,5 @@
+import { authFetch } from '@/lib/auth-api'
+
 export type RecordStatus = 'ACTIVE' | 'INACTIVE'
 
 export type EnvironmentRecord = {
@@ -71,7 +73,7 @@ export class RegistrationApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${apiBaseUrl}/api/registrations${path}`, {
+  const response = await authFetch(`${apiBaseUrl}/api/registrations${path}`, {
     ...init,
     headers: {
       'content-type': 'application/json',

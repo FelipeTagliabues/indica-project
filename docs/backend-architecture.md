@@ -173,3 +173,13 @@ npm run test:integration:db
 ```
 
 `prisma:migration:sql` apenas imprime um diff de banco vazio para o schema; ele não aplica a migration. `prisma:migrate:deploy` é o único comando de aplicação preparado para este marco e só deve ser usado após o preflight no banco exclusivo. Não use `migrate dev`, `db push`, `db execute` ou `migrate resolve`.
+
+## Autenticação
+
+`User` armazena identidade, papel, status, confirmação e versão global de sessão. `AuthToken` guarda somente SHA-256 de tokens aleatórios para confirmação e recuperação; expiração e uso único são validados atomicamente. `UserSession` guarda o hash do verificador do cookie, expiração por inatividade, limite absoluto e revogação. Senhas usam Argon2id (19 MiB, 2 iterações e paralelismo 1).
+
+O cookie contém apenas ID da sessão e verificador aleatório, é `HttpOnly`, `SameSite=Strict` e `Secure` em produção. Escritas nas APIs protegidas também exigem token CSRF derivado por HMAC e entregue após login/restauração da sessão. A identidade de auditoria é sobrescrita pelo backend com o e-mail autenticado e usa `AuditActorKind.AUTHENTICATED`; valores enviados pelo cliente não determinam autoria.
+
+Rotas públicas: `POST /api/auth/register`, `confirm-email`, `resend-confirmation`, `login`, `forgot-password` e `reset-password`. `GET /api/auth/session` e `POST /api/auth/logout` exigem sessão; logout também exige CSRF. Todas as rotas de cadastros, resultados e importações são protegidas.
+
+O limitador de tentativas atual é conservador e mantido em memória do processo. Para implantação com mais de uma instância, ele deverá ser substituído por armazenamento compartilhado sem alterar o contrato HTTP. O envio usa SMTP via Nodemailer e depende das variáveis documentadas no `.env.example`; tokens nunca são retornados nem registrados em log.

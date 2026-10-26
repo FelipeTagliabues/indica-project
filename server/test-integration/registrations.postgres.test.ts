@@ -1,6 +1,6 @@
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { createApp } from '../src/app.js'
+import { createAuthenticatedTestApp as createApp, testAuthUser } from '../test/support/authenticated-test-app.js'
 import type { PrismaClient } from '../src/generated/prisma/client.js'
 import { disconnectPrismaClient, getPrismaClient } from '../src/lib/prisma.js'
 
@@ -24,7 +24,7 @@ describe('cadastros com PostgreSQL exclusivo', () => {
       )
     }
 
-    app = createApp({ databaseProvider: () => database })
+    app = createApp({ databaseProvider: () => database, authenticationBypass: { ...testAuthUser, email: actorIdentifier } })
   })
 
   afterAll(async () => {

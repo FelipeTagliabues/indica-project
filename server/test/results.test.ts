@@ -1,7 +1,7 @@
 import request from 'supertest'
 import { describe, expect, it, vi } from 'vitest'
 import type { PrismaClient } from '../src/generated/prisma/client.js'
-import { createApp } from '../src/app.js'
+import { createAuthenticatedTestApp as createApp } from './support/authenticated-test-app.js'
 
 const assignmentId = '11111111-1111-4111-8111-111111111111'
 const resultId = '22222222-2222-4222-8222-222222222222'
@@ -133,7 +133,8 @@ describe('resultados diários', () => {
         operation: 'CREATE',
         entityType: 'DailyResult',
         entityId: resultId,
-        actorIdentifier: 'Responsável informado',
+        actorKind: 'AUTHENTICATED',
+        actorIdentifier: 'testes@indica.local',
       }),
     })
   })
