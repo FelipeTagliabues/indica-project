@@ -116,25 +116,36 @@ export function createAuthRouter(
       return { user, authToken }
     })
 
+    let emailDelivery: {
+      status: 'SENT' | 'PENDING'
+      code?: 'EMAIL_PROVIDER_NOT_CONFIGURED' | 'EMAIL_DELIVERY_FAILED'
+    } = { status: 'SENT' }
+
     try {
       await emailSenderProvider().sendEmailConfirmation({
         to: created.user.email,
         name: created.user.name,
         confirmationUrl: `${config.appBaseUrl}/confirmar-email?token=${encodeURIComponent(rawToken)}`,
       })
-      await database.authToken.update({ where: { id: created.authToken.id }, data: { sentAt: now() } })
     } catch (cause) {
-      if (cause instanceof AppError) throw cause
-      throw new AppError(
-        'A conta foi criada, mas o provedor não confirmou o envio. Solicite um novo e-mail quando o serviço estiver disponível.',
-        503,
-        'EMAIL_DELIVERY_FAILED',
-      )
+      emailDelivery = {
+        status: 'PENDING',
+        code: cause instanceof AppError && cause.code === 'EMAIL_PROVIDER_NOT_CONFIGURED'
+          ? 'EMAIL_PROVIDER_NOT_CONFIGURED'
+          : 'EMAIL_DELIVERY_FAILED',
+      }
+    }
+
+    if (emailDelivery.status === 'SENT') {
+      await database.authToken.update({ where: { id: created.authToken.id }, data: { sentAt: now() } })
     }
 
     response.status(201).json({
       data: publicUser(created.user),
-      message: 'Conta criada. Confirme o e-mail antes de entrar.',
+      message: emailDelivery.status === 'SENT'
+        ? 'Conta criada. Confirme o e-mail antes de entrar.'
+        : 'Conta criada, mas o e-mail de confirmação ainda não foi enviado. Solicite o reenvio quando o serviço estiver disponível.',
+      emailDelivery,
     })
   })
 

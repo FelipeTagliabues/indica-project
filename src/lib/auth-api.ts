@@ -6,6 +6,15 @@ export type AuthUser = {
   role: 'USER' | 'ADMIN'
 }
 
+export type RegistrationResult = {
+  data: AuthUser
+  message: string
+  emailDelivery: {
+    status: 'SENT' | 'PENDING'
+    code?: 'EMAIL_PROVIDER_NOT_CONFIGURED' | 'EMAIL_DELIVERY_FAILED'
+  }
+}
+
 type ErrorEnvelope = {
   error?: { code?: string; message?: string; details?: Array<{ field?: string; message: string }> }
 }
@@ -48,15 +57,27 @@ export async function authFetch(path: string, init: RequestInit = {}) {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await authFetch(`/api/auth${path}`, init)
+  let response: Response
+  try {
+    response = await authFetch(`/api/auth${path}`, init)
+  } catch {
+    throw new AuthApiError(
+      'Não foi possível comunicar com a API. Verifique se o serviço está em execução.',
+      0,
+      'API_UNREACHABLE',
+    )
+  }
   const payload = await response.json().catch(() => null) as T | ErrorEnvelope | null
   if (!response.ok) {
     const error = payload && typeof payload === 'object' && 'error' in payload ? payload.error : undefined
     const details = error?.details?.map((item) => item.message).join(' ') ?? ''
+    const fallbackMessage = response.status >= 500
+      ? 'O serviço de autenticação está indisponível. Tente novamente após iniciar a API.'
+      : 'Não foi possível concluir a operação.'
     throw new AuthApiError(
-      [error?.message ?? 'Não foi possível concluir a operação.', details].filter(Boolean).join(' '),
+      [error?.message ?? fallbackMessage, details].filter(Boolean).join(' '),
       response.status,
-      error?.code,
+      error?.code ?? (response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : undefined),
     )
   }
   return payload as T
@@ -64,7 +85,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const authApi = {
   register: (input: { name: string; email: string; password: string; passwordConfirmation: string }) =>
-    request<{ data: AuthUser; message: string }>('/register', { method: 'POST', body: JSON.stringify(input) }),
+    request<RegistrationResult>('/register', { method: 'POST', body: JSON.stringify(input) }),
   confirmEmail: (token: string) =>
     request<{ message: string }>('/confirm-email', { method: 'POST', body: JSON.stringify({ token }) }),
   resendConfirmation: (email: string) =>

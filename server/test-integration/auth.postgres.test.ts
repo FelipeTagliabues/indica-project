@@ -4,6 +4,7 @@ import { createApp } from '../src/app.js'
 import type { AuthConfig } from '../src/auth/config.js'
 import { AuthRateLimiter } from '../src/auth/rate-limiter.js'
 import type { EmailSender } from '../src/auth/types.js'
+import { AppError } from '../src/errors/app-error.js'
 import { disconnectPrismaClient, getPrismaClient } from '../src/lib/prisma.js'
 
 const password = 'SenhaSegura123'
@@ -215,6 +216,54 @@ describe('autenticação com PostgreSQL exclusivo', () => {
     const stored = await database.user.findUniqueOrThrow({ where: { email } })
     expect(stored.role).toBe('USER')
     expect(stored.status).toBe('PENDING')
+  })
+
+  it('16. preserva a conta pendente quando o provedor está indisponível e permite reenviar depois', async () => {
+    const email = address('provider-unavailable')
+    const unavailableSender: EmailSender = {
+      async sendEmailConfirmation() {
+        throw new AppError('Provedor indisponível para o teste.', 503, 'EMAIL_PROVIDER_NOT_CONFIGURED')
+      },
+      async sendPasswordReset() {
+        throw new AppError('Provedor indisponível para o teste.', 503, 'EMAIL_PROVIDER_NOT_CONFIGURED')
+      },
+    }
+    app = createApp({
+      databaseProvider: () => database,
+      authOptions: {
+        configProvider: () => config,
+        emailSenderProvider: () => unavailableSender,
+        now: () => new Date(Date.now() + clockOffsetMs),
+        rateLimiter: new AuthRateLimiter(config.csrfSecret),
+      },
+    })
+
+    const created = await request(app).post('/api/auth/register').send(registration(email))
+    expect(created.status, JSON.stringify(created.body)).toBe(201)
+    expect(created.body.emailDelivery).toEqual({
+      status: 'PENDING',
+      code: 'EMAIL_PROVIDER_NOT_CONFIGURED',
+    })
+    expect(created.body.message).toContain('Conta criada')
+    expect(await database.user.count({ where: { email } })).toBe(1)
+    expect(await database.user.findUniqueOrThrow({ where: { email } })).toMatchObject({
+      status: 'PENDING',
+      emailConfirmedAt: null,
+    })
+
+    app = createApp({
+      databaseProvider: () => database,
+      authOptions: {
+        configProvider: () => config,
+        emailSenderProvider: () => emailSender,
+        now: () => new Date(Date.now() + clockOffsetMs),
+        rateLimiter: new AuthRateLimiter(config.csrfSecret),
+      },
+    })
+    const resent = await request(app).post('/api/auth/resend-confirmation').send({ email })
+    expect(resent.status, JSON.stringify(resent.body)).toBe(202)
+    expect(confirmations.get(email)).toBeTypeOf('string')
+    expect(await database.user.count({ where: { email } })).toBe(1)
   })
 })
 
